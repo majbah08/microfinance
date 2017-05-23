@@ -1,0 +1,365 @@
+{% extends 'base.html' %}
+{% load tz %}
+{% block additional-headers %}
+    <link rel="stylesheet" type="text/css" href="/static/plugins/bootstrap-toastr/toastr.min.css"/>
+    <style>
+        .data-table-container table {
+            clear: both;
+            display: table !important;
+            overflow-x: auto;
+            width: 98% !important;
+        }
+
+        .table th, .table td {
+            border: 1px solid #dddddd !important;
+            text-align: center;
+        }
+
+        .btn {
+            -moz-border-radius: 7px !important;
+            -webkit-border-radius: 7px !important;
+            border-radius: 7px !important;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <section id="data-view">
+        <!--<span class="span12">-->
+        <div class="data-table-container table table-striped table-hover">
+            {% if user.is_authenticated %}
+                <h1>{{ page_header }}</h1>
+                {% if success %}
+                    <div class="alert alert-success" role="alert">
+                        Your Request was successful!
+                    </div>
+                {% endif %}
+                {% if locker %}
+                    <div class="alert alert-success" role="alert">
+                        This Request is under process by {{ locker }}
+                    </div>
+                {% endif %}
+                {% if unlock %}
+                    <div class="alert alert-success" role="alert">
+                        This Request is now open
+                    </div>
+                {% endif %}
+
+                {% if admin %}
+                    <form action="/usermodule/register">
+                        <input type="submit" class="btn btn-success" value="Register User">
+                    </form>
+                    <br>
+                {% endif %}
+                <form class="form-inline">
+                    <div class="form-group">
+                        <label for="sel1">Problem Type</label>
+                        <select class="form-control" id="problem_type">
+                            <option value="custom">Select a Problem Type</option>
+                            <option value="BAR">BAR</option>
+                            <option value="Transaction Confirmation">Transaction Confirmation</option>
+                            <option value="PIN RESET">PIN Reset</option>
+                            <option value="Unbar">Unbar</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sel1">Branch</label>
+                        <select class="form-control" id="branch">
+                            <option value="custom">Select a Branch</option>
+                            {% for branch in branches %}
+                                <option value="{{ branch.id }}">{{ branch.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="sel1">Status</label>
+                        <select class="form-control" id="status">
+                            <option value="Pending">Select a Status</option>
+                            <option value="New">New</option>
+                            <option value="Read">Read</option>
+                            <option value="Pending">Pending</option>
+                        </select>
+                    </div>
+                    {% comment %}
+                        
+                    <div class="form-group">
+                    <input id="datepicker1" class="datepicker">
+                    <input id="datepicker2" class="datepicker">
+                    </div>
+                    {% endcomment %}
+                    <div class="form-group">
+                        <label>Date Range</label>
+                        <div class="input-group input-daterange">
+                            <input type="text" id="datepicker1" class="datepicker" >
+                            <span class="input-group-addon">to</span>
+                            <input type="text" id="datepicker2" class="datepicker" >
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <input type="submit" style="position:relative;left:10px;top:8px;" class="btn btn-lg btn-primary"
+                               onclick="filterDownload(event);" name="submit" value="Search"/>
+                    </div>
+                </form>
+                <br>
+                <div id="complain_table_container">
+                    <table id="complain_table" border="1" class="display nowrap"><!-- class="table"-->
+                        <thead>
+                        <tr>
+                            <th>Ticket ID</th>
+                            <th>Request Date & Time</th>
+                            <!--<th>Time</th>-->
+                            <th>Account No.</th>
+                            <th>Service Type</th>
+                            <th>Status</th>
+                            <th>Transaction ID</th>
+                            <th>Transaction Date & Time</th>
+                            <!--<th>View</th> -->
+                        </tr>
+                        </thead>
+                        <tbody>
+
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                You are not not logged in please <a href="/usermodule/login/">login</a>
+            {% endif %}
+            <div style="clear: both;"></div>
+        </div>
+        <div id="client-side-filter"></div>
+        <div style="float:left">
+            <div id="main"></div>
+        </div>
+    </section>
+{% endblock %}
+
+{% block additional-javascript %}
+    <script src="/static/plugins/bootstrap-toastr/toastr.min.js"></script>
+    <script type="text/javascript">
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "positionClass": "toast-bottom-right",
+            "onclick": null,
+            "showDuration": "1000",
+            "hideDuration": "1000",
+            "timeOut": "5000",
+            "extendedTimeOut": "1000",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        }
+
+
+        var last_id = {{ last_id }};
+        (function () {
+             {% if curr_user_role != 'bKash CS Agent' %}
+
+        $('#datepicker1').attr('disabled', false);
+        $('#datepicker2').attr('disabled', false);
+
+     {% endif %}
+
+            $('#datepicker1').datepicker({
+                endDate: '0d',
+                format: 'yyyy-mm-dd',
+                todayHighlight: true
+            });
+            $('#datepicker2').datepicker({
+                endDate: '0d',
+                format: 'yyyy-mm-dd',
+                todayHighlight: true
+            });
+            var oneWeekAgo = new Date();
+            var today = oneWeekAgo.getFullYear() + "-" + (oneWeekAgo.getMonth() + 1) + "-" + oneWeekAgo.getDate();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            $("#datepicker1").datepicker("update", oneWeekAgo);
+            $("#datepicker2").datepicker("update", today);
+        })();
+
+
+        $(document).ready(function () {
+            table = $('#complain_table').DataTable({
+                //"aaSorting": [],
+                destroy: true,
+                "processing": true,
+                "serverSide": false,
+                "ajax": {
+                    "url": "/project/reload-complains/",
+                    "dataSrc": ""
+                },
+                "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
+                    if (aData[3] == "New") {
+                        $('td', nRow).parent().addClass('warning');
+                    }
+                    else if (aData[3] == "Read") {
+                        $('td', nRow).parent().addClass('active');
+                    }
+                    else if (aData[3] == "Executed") {
+                        $('td', nRow).parent().addClass('success');
+                    }
+                    else if (aData[3] == "Not Executed") {
+                        $('td', nRow).parent().addClass('danger');
+                    }
+
+                    if (aData[2]) {
+                        $('td', nRow).parent().find('td').eq(2).html('<a href="/project/view-complain/' + aData[7] + '" >' + aData[2] + '</a>');
+                    }
+
+
+                },
+                "columns": [
+                    {"name": "Ticket ID", "orderable": false},
+                    {"name": "Request Date & Time", "orderable": false},
+                    {"name": "Account No.", "orderable": false},
+                    {"name": "Service Type", "orderable": false},
+                    {"name": "Status", "orderable": false},
+                    {"name": "Transaction ID", "orderable": false},
+                    {"name": "Transaction Date & Time", "orderable": false}
+                ],
+                "stateSave": true,
+                "pageLength": 25
+            });
+
+            setInterval(function () {
+                $.ajax({
+                    url: '/project/get-last-id/',
+                    type: "GET",
+                    success: function (data) {
+                        if (data > last_id) {
+                            var audio = new Audio('/static/audio/just-like-magic.mp3');
+                            audio.play();
+                            table.ajax.reload();
+                            last_id = data;
+                            toastr.info('New request Has been added!');
+                        }
+                    }
+                });
+
+            }, 500000);
+
+        });
+        // $(document).on('change', '#complain_table_container', function() {
+        //   $('#complain_table').DataTable({
+        //         "pageLength": 25
+        //     });
+        // });
+        // $('#complain_table_container').change(function() {
+        //     $('#complain_table').DataTable({});
+        // })
+
+        function filterDownload(e) {
+            e.preventDefault();
+            var problem_type = $('#problem_type').val();
+            var branch = $('#branch').val();
+            var status = $('#status').val();
+            //var status = "Pending";
+            var start = $('#datepicker1').val();
+            var end = $('#datepicker2').val();
+
+            color_class = '';
+            if (status == 'New') {
+                color_class = "warning";
+            } else if (status == 'Read') {
+                color_class = "active";
+            } else if (status == 'Executed') {
+                color_class = "success";
+            } else if (status == 'Not Executed') {
+                color_class = "danger";
+            }
+
+
+            if (!start || !end) {
+                alert("Both Dates must have value")
+            }
+            end = end + " 23:59:59";
+
+            var order = 'asc';
+            if ("{{page_header}}" == 'New Requests') {
+                order = 'asc';
+            } else {
+                order = 'desc';
+            }
+            //if (!(problem_type == 'custom' && branch == 'custom' &&  status == 'custom') && !(!start || !end) ) {
+            if (start && end) {
+                $.ajax({
+                    type: "GET",
+                    url: "/project/complain-filter-list/",
+                    data: {
+                        problem_type: problem_type,
+                        branch: branch,
+                        status: status,
+                        order: order,
+                        start: start,
+                        end: end
+                    },
+                    success: function (response) {
+                        var table_html = '<table border="1" id="complain_table" class="table"><thead><tr>' +
+                                '<th>Ticket ID</th>' +
+                                '<th>Request Date & Time</th>' +
+                                //'<th>Time</th>' +
+                                '<th>Account No.</th>' +
+                                '<th>Service Type</th>' +
+                                '<th>Status</th>' +
+                                '<th>Transaction ID</th>' +
+                                '<th>Transaction Date & Time</th>' +
+                                // '<th>View</th>' +
+                                '</tr></thead><tbody>';
+                        if (response.length > 0) {
+                            response.forEach(function (option) {
+
+                                if (option.status == 'New') {
+                                    color_class = "warning";
+                                } else if (option.status == 'Read') {
+                                    color_class = "active";
+                                } else if (option.status == 'Executed') {
+                                    color_class = "success";
+                                } else if (option.status == 'Not Executed') {
+                                    color_class = "danger";
+                                }
+//alert(option.time+ '  ' + option.date);
+                                var row = '<tr class="' + color_class + '">' +
+                                        '<td>' + option.serial + '</td>' +
+                                        '<td>' + option.date + '</td>' +
+                                        //'<td>'+option.time+'</td>'+
+                                        // '<td>'+option.account_no+'</td>'+
+                                        '<td><a href="/project/view-complain/' + option.view + '">' + option.account_no + '</a></td>' +
+                                        '<td>' + option.service_type + '</td>' +
+                                        '<td>' + option.status + '</td>' +
+                                        '<td>' + option.transaction_id + '</td>' +
+                                        '<td>' + option.tdate + '</td>' +
+                                        '</tr>';
+                                table_html += row;
+                            });
+                            table_html += '</tbody></table>';
+                            table.destroy();
+
+                            $("#complain_table_container").empty();
+                            $("#complain_table_container").append(table_html);
+                            table = $('#complain_table').DataTable({
+                                "columns": [
+                                    {"name": "Ticket ID", "orderable": false},
+                                    {"name": "Request Date & Time", "orderable": false},
+                                    {"name": "Account No.", "orderable": false},
+                                    {"name": "Service Type", "orderable": false},
+                                    {"name": "Status", "orderable": false},
+                                    {"name": "Transaction ID", "orderable": false},
+                                    {"name": "Transaction Date & Time", "orderable": false}
+                                ],
+                                "stateSave": false,
+
+                                "pageLength": 25
+                            });
+                        } else {
+                            $("#complain_table_container").empty();
+                        }
+                    }
+                    , error: function (response) {
+                        console.log("Error Occured");
+                    }
+                }); // end-ajax
+            }
+        }
+    </script>
+{% endblock %}
